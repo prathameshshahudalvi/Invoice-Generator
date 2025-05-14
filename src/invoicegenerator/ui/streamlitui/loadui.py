@@ -1,10 +1,10 @@
 import streamlit as st
 from src.invoicegenerator.ui.uiconfigfile import Config
+from src.invoicegenerator.generatepdf.generate_pdf import generate_pdf
 
 class LoadStreamlitUI:
     def __init__(self):
         self.config = Config()
-        print("LoadStreamlitUI initialized with config file.")
 
     def load_streamlit_ui(self):
         st.set_page_config(page_title= self.config.get_page_title(), layout="wide")
@@ -38,6 +38,6 @@ class LoadStreamlitUI:
                 st.write(f"{i+1}. {p['name']} - {p['amount']} x ₹{p['price']} = ₹{line_total:.2f}")
 
             st.markdown(f"### 🧮 Total: ₹{total:.2f}")
-
             if st.button("📄 Generate Invoice"):
-                print("Generating invoice...")
+                pdf = generate_pdf(st.session_state.products)
+                pdf.generate_pdf()
