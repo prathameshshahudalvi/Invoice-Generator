@@ -12,13 +12,13 @@ class generate_pdf:
         pdf.add_page()
 
         try:
-            pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
-            pdf.set_font("DejaVu", "", 12)
+            pdf.add_font("DejaVuSans", "", "DejaVuSans.ttf", uni=True)
+            pdf.set_font("DejaVuSans", "", 12)
         except:
             pdf.set_font("Arial", size=12)
 
         # Add invoice lines
-        for p in st.session_state.products:
+        for p in self.invoice_data:
             if isinstance(p, tuple):
                 p = {"name": p[0], "price": p[1], "amount": p[2]}
             line_total = p["price"] * p["amount"]
@@ -30,7 +30,7 @@ class generate_pdf:
         buffer.seek(0)
 
         st.download_button(
-            label="Download PDF",
+            label="Download PDF--",
             data=buffer,
             file_name="invoice.pdf",
             mime="application/pdf"
