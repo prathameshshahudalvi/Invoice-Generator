@@ -1,13 +1,20 @@
 import streamlit as st
 from src.invoicegenerator.ui.uiconfigfile import Config
 from src.invoicegenerator.generatepdf.generate_pdf import generate_pdf
+from src.invoicegenerator.googlesheet.add_in_googlesheet import AddInGoogleSheet
 
 class LoadStreamlitUI:
     def __init__(self):
         self.config = Config()
 
     def load_streamlit_ui(self):
-        st.set_page_config(page_title= self.config.get_page_title(), layout="wide")
+        st.set_page_config(page_title=self.config.get_page_title(), layout="wide")  # <-- Move this to the top
+
+        # Sidebar for credentials and spreadsheet key
+        st.sidebar.header("Google Sheets Credentials")
+        credentials_file = st.sidebar.file_uploader("Upload credentials.json", type=["json"])
+        spreadsheet_key = st.sidebar.text_input("Spreadsheet Key")
+
         st.header(self.config.get_page_title())
         st.session_state.timeframe = ''
         st.session_state.IsFetchButtonClicked = False
@@ -36,6 +43,13 @@ class LoadStreamlitUI:
                 line_total = p['price'] * p['amount']
                 total += line_total
                 st.write(f"{i+1}. {p['name']} - {p['amount']} x ₹{p['price']} = ₹{line_total:.2f}")
+                
+                AddInGoogleSheet(
+                credentials_file=credentials_file,
+                spreadsheet_key=spreadsheet_key
+                ).add_data(
+                    data=[p['name'], p['price'], p['amount']]
+                )
 
             st.markdown(f"### 🧮 Total: ₹{total:.2f}")
             if st.button("📄 Generate Invoice"):
