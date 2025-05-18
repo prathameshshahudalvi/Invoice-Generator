@@ -30,7 +30,7 @@ class generate_pdf:
         buffer.seek(0)
 
         st.download_button(
-            label="Download PDF--",
+            label="Download PDF",
             data=buffer,
             file_name="invoice.pdf",
             mime="application/pdf"

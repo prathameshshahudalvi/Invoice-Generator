@@ -2,6 +2,11 @@ import streamlit as st
 from src.invoicegenerator.ui.uiconfigfile import Config
 from src.invoicegenerator.generatepdf.generate_pdf import generate_pdf
 from src.invoicegenerator.googlesheet.add_in_googlesheet import AddInGoogleSheet
+from reportlab.lib.pagesizes import LETTER
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
+from io import BytesIO
+from datetime import datetime
 
 class LoadStreamlitUI:
     def __init__(self):
@@ -20,38 +25,107 @@ class LoadStreamlitUI:
         st.session_state.IsFetchButtonClicked = False
         st.session_state.IsSDLC = False
 
-        with st.form("invoice_form"):
-            product_name = st.text_input("Product Name")
-            product_price = st.number_input("Price", min_value=0.0)
-            product_amount = st.number_input("Amount", min_value=1)
-            submitted = st.form_submit_button("Add Product")
+        # Company and client information
+        company_name = st.text_input("Company Name", "Your Company")
+        company_slogan = st.text_input("Slogan", "Your slogan here")
+        company_info = st.text_area("Company Address and Contact", "123 Street\nCity, ZIP\nPhone | Fax\nEmail | Website")
 
-            if submitted:
-                if "products" not in st.session_state:
-                    st.session_state.products = []
-                st.session_state.products.append({
-                    "name": product_name,
-                    "price": product_price,
-                    "amount": product_amount
-                })
-                st.success("Product added.")
+        client_name = st.text_input("Client Name", "Client Co.")
+        client_info = st.text_area("Client Address and Contact", "Client Street\nCity, ZIP\nPhone | Email")
 
-        if "products" in st.session_state and st.session_state.products:
-            st.subheader("🛒 Product List")
-            total = 0
-            for i, p in enumerate(st.session_state.products):
-                line_total = p['price'] * p['amount']
-                total += line_total
-                st.write(f"{i+1}. {p['name']} - {p['amount']} x ₹{p['price']} = ₹{line_total:.2f}")
-                
-                AddInGoogleSheet(
-                credentials_file=credentials_file,
-                spreadsheet_key=spreadsheet_key
-                ).add_data(
-                    data=[p['name'], p['price'], p['amount']]
-                )
+        invoice_no = st.text_input("Invoice #", "INV-001")
+        invoice_date = st.date_input("Date", datetime.today())
+        project_desc = st.text_input("Project Description", "Project XYZ")
+        po_number = st.text_input("P.O. #", "PO123")
 
-            st.markdown(f"### 🧮 Total: ₹{total:.2f}")
-            if st.button("📄 Generate Invoice"):
-                pdf = generate_pdf(st.session_state.products)
-                pdf.generate_pdf()
+        # Editable table
+        st.subheader("Invoice Items")
+        items = []
+        for i in range(1, 8):  # 7 rows
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                desc = st.text_input(f"Description {i}", f"Item {i}")
+            with col2:
+                try:
+                    amount = float(st.text_input(f"Amount {i}", "0.00"))
+                except:
+                    amount = 0.0
+            items.append((desc, amount))
+
+        total = sum(amount for _, amount in items)
+
+        # Generate PDF function
+        def create_invoice():
+            buffer = BytesIO()
+            c = canvas.Canvas(buffer, pagesize=LETTER)
+            width, height = LETTER
+
+            y = height - 50
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, y, company_name)
+
+            c.setFont("Helvetica-Oblique", 10)
+            c.drawString(50, y - 20, company_slogan)
+
+            c.setFont("Helvetica", 10)
+            for i, line in enumerate(company_info.split("\n")):
+                c.drawString(50, y - 40 - i*12, line)
+
+            # Invoice details
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(400, y - 10, "INVOICE")
+            c.setFont("Helvetica", 10)
+            c.drawString(400, y - 30, f"INVOICE #: {invoice_no}")
+            c.drawString(400, y - 45, f"DATE: {invoice_date.strftime('%Y-%m-%d')}")
+            c.drawString(400, y - 60, f"FOR: {project_desc}")
+            c.drawString(400, y - 75, f"P.O. #: {po_number}")
+
+            # Client info
+            c.setFont("Helvetica", 10)
+            c.drawString(50, y - 100, "TO:")
+            for i, line in enumerate(client_info.split("\n")):
+                c.drawString(70, y - 115 - i*12, line)
+
+            # Table
+            table_y = y - 200
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(50, table_y, "Description")
+            c.drawString(450, table_y, "Amount")
+            c.line(50, table_y - 2, 550, table_y - 2)
+
+            c.setFont("Helvetica", 10)
+            for i, (desc, amount) in enumerate(items):
+                c.drawString(50, table_y - 20 * (i+1), desc)
+                c.drawRightString(540, table_y - 20 * (i+1), f"₹{amount:.2f}")
+
+            # Total
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(50, table_y - 20 * (len(items)+1), "Total")
+            c.drawRightString(540, table_y - 20 * (len(items)+1), f"₹{total:.2f}")
+            c.line(50, table_y - 20 * (len(items)+1) - 2, 550, table_y - 20 * (len(items)+1) - 2)
+
+            # Footer
+            c.setFont("Helvetica", 9)
+            c.drawString(50, 100, f"Make all checks payable to {company_name}")
+            c.drawString(50, 85, "Payment is due within 30 days.")
+            c.setFont("Helvetica-Oblique", 9)
+            c.drawString(50, 65, "If you have any questions concerning this invoice, contact [Name] | [Phone] | [Email]")
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(200, 45, "Thank you for your business!")
+
+            c.showPage()
+            c.save()
+            buffer.seek(0)
+            return buffer
+
+        # Download button
+        if st.button("Generate PDF Invoice"):
+            pdf = create_invoice()
+            st.download_button("📥 Download Invoice PDF", data=pdf, file_name="invoice.pdf", mime="application/pdf")
+
+        # Google Sheets integration
+        if credentials_file and spreadsheet_key:
+            google_sheet = AddInGoogleSheet(credentials_file, spreadsheet_key)
+            metadata = [invoice_no, invoice_date.strftime('%Y-%m-%d')]
+
+            google_sheet.add_invoice_row(items, total, metadata)
