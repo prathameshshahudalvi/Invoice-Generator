@@ -95,13 +95,15 @@ class LoadStreamlitUI:
 
             c.setFont("Helvetica", 10)
             for i, (desc, amount) in enumerate(items):
+                if amount == 0:
+                    continue
                 c.drawString(50, table_y - 20 * (i+1), desc)
-                c.drawRightString(540, table_y - 20 * (i+1), f"₹{amount:.2f}")
+                c.drawRightString(540, table_y - 20 * (i+1), f"Rs {amount:.2f}")
 
             # Total
             c.setFont("Helvetica-Bold", 10)
             c.drawString(50, table_y - 20 * (len(items)+1), "Total")
-            c.drawRightString(540, table_y - 20 * (len(items)+1), f"₹{total:.2f}")
+            c.drawRightString(540, table_y - 20 * (len(items)+1), f"Rs {total:.2f}")
             c.line(50, table_y - 20 * (len(items)+1) - 2, 550, table_y - 20 * (len(items)+1) - 2)
 
             # Footer
@@ -123,9 +125,8 @@ class LoadStreamlitUI:
             pdf = create_invoice()
             st.download_button("📥 Download Invoice PDF", data=pdf, file_name="invoice.pdf", mime="application/pdf")
 
-        # Google Sheets integration
-        if credentials_file and spreadsheet_key:
-            google_sheet = AddInGoogleSheet(credentials_file, spreadsheet_key)
-            metadata = [invoice_no, invoice_date.strftime('%Y-%m-%d')]
-
-            google_sheet.add_invoice_row(items, total, metadata)
+            # Google Sheets integration
+            if credentials_file and spreadsheet_key:
+                google_sheet = AddInGoogleSheet(credentials_file, spreadsheet_key)
+                metadata = [invoice_no, invoice_date.strftime('%Y-%m-%d')]
+                google_sheet.add_invoice_row(items, total, metadata)
